@@ -1,8 +1,8 @@
 package ws
 
 import (
-	"log"
 	"pusher/internal/source"
+	"pusher/pkg/logger"
 	"sync"
 	"time"
 
@@ -54,7 +54,7 @@ func (sm *SubscriptionManager) monitor() {
 		sm.mu.RLock()
 		for topic, t := range sm.topics {
 			for typ, subscribers := range t.subscribers {
-				log.Printf("topic: %s, type: %s, subscribers: %d", topic, typ, len(subscribers))
+				logger.Infof("topic: %s, type: %s, subscribers: %d", topic, typ, len(subscribers))
 			}
 		}
 		sm.mu.RUnlock()

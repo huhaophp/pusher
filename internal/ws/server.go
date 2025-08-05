@@ -1,8 +1,8 @@
 package ws
 
 import (
-	"log"
 	"net/http"
+	"pusher/pkg/logger"
 	"sync"
 	"time"
 
@@ -70,8 +70,8 @@ func NewWebsocketServer(config *Config, handler Handler) *WebsocketServer {
 // onWebsocket 升级为 WebSocket.
 func (ws *WebsocketServer) onWebsocket(w http.ResponseWriter, r *http.Request) {
 	if _, err := ws.upgrader.Upgrade(w, r, nil); err != nil {
-		log.Printf("WebSocket升级失败: %v", err)
-		http.Error(w, "WebSocket升级失败", http.StatusInternalServerError)
+		logger.Infof("upgrade failed: %v", err)
+		http.Error(w, "upgrade failed", http.StatusInternalServerError)
 	}
 }
 
@@ -116,7 +116,7 @@ func (ws *WebsocketServer) GetConnAll() map[*websocket.Conn]struct{} {
 func (ws *WebsocketServer) monitor() {
 	for {
 		ws.mu.RLock()
-		log.Printf("当前连接数: %d, 连接信息: %+v", len(ws.conns), ws.conns)
+		logger.Infof("current connections: %d, connections: %+v", len(ws.conns), ws.conns)
 		ws.mu.RUnlock()
 		time.Sleep(time.Second * 5)
 	}
@@ -129,6 +129,7 @@ func (ws *WebsocketServer) Run() error {
 	mux.HandleFunc("/ws", ws.onWebsocket)
 
 	engine := nbhttp.NewEngine(nbhttp.Config{
+		Name:                    "pusher",
 		Network:                 "tcp",
 		Addrs:                   []string{ws.config.Addr},
 		MaxLoad:                 1000000,
@@ -137,11 +138,11 @@ func (ws *WebsocketServer) Run() error {
 	})
 
 	if err := engine.Start(); err != nil {
-		log.Printf("nbio.Start failed: %v\n", err)
+		logger.Infof("nbio.Start failed: %v\n", err)
 		return err
 	}
 
-	log.Printf("ws server started at %s\n", ws.config.Addr)
+	logger.Infof("ws server started at %s\n", ws.config.Addr)
 
 	return nil
 }

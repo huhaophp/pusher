@@ -2,8 +2,8 @@ package ws
 
 import (
 	"context"
-	"pusher/internal/model"
 	"pusher/internal/source"
+	"pusher/internal/types"
 	"sync"
 
 	"github.com/lesismal/nbio/nbhttp/websocket"
@@ -36,7 +36,7 @@ func (ts *TopicSubscription) start() {
 }
 
 // onMessage handles the message from the source.
-func (ts *TopicSubscription) onMessage(data *model.Data) {
+func (ts *TopicSubscription) onMessage(data *types.Data) {
 	for conn, subscriber := range ts.subscribers[data.Type] {
 		if subscriber.isClosed {
 			ts.Remove(data.Type, conn)

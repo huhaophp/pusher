@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"log"
-	"pusher/internal/model"
+	"pusher/internal/types"
+	"pusher/pkg/logger"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisSource struct {
@@ -23,7 +24,7 @@ func NewRedisSource(redis *redis.Client) *RedisSource {
 }
 
 // PullMessage 获取消息.
-func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler func(data *model.Data)) error {
+func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler func(data *types.Data)) error {
 	if r.enableMock {
 		go r.mockMessage(topic)
 	}
@@ -32,23 +33,23 @@ func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler fun
 	if _, err := subscribe.Receive(ctx); err != nil {
 		return fmt.Errorf("receive error: %w", err)
 	}
-	log.Printf("RedisSource subscribe %s success", topic)
+	logger.Infof("RedisSource subscribe %s success", topic)
 	for {
 		select {
 		case msg := <-subscribe.Channel():
 			if msg == nil {
-				log.Printf("msg is nil")
+				logger.Info("msg is nil")
 				continue
 			}
-			var data model.Data
+			var data types.Data
 			if err := json.Unmarshal([]byte(msg.Payload), &data); err != nil {
-				log.Printf("json umarshal failed, err: %+v", err)
+				logger.Infof("json umarshal failed, err: %+v", err)
 				continue
 			}
 			data.Meta.ReceiveTime = time.Now()
 			handler(&data)
 		case <-ctx.Done():
-			log.Println("context done")
+			logger.Info("context done")
 			return nil
 		}
 	}
@@ -62,5 +63,6 @@ func (r *RedisSource) mockMessage(topic string) {
 			"payload": `{"username": "123", "nickname": "123"}`,
 		})
 		r.redis.Publish(context.Background(), topic, marshal)
+		time.Sleep(time.Second * 1)
 	}
 }

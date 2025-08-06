@@ -9,22 +9,21 @@ import (
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
-// SubscriptionManager manages the topics and their subscribers.
+// SubscriptionManager 管理主题和订阅者
 type SubscriptionManager struct {
-	topics      map[string]*TopicSubscription
-	redisSource *source.RedisSource
-	mu          sync.RWMutex
+	topics map[string]*TopicSubscription
+	mu     sync.RWMutex
 }
 
-// NewSubscriptionManager creates a new subscription manager.
-// It initializes the topics and starts the monitor.
-func NewSubscriptionManager(topics []string, redisSource *source.RedisSource) *SubscriptionManager {
+// NewSubscriptionManager 创建一个新的订阅管理器
+// 它初始化主题并启动监控
+func NewSubscriptionManager(topics []string, source source.Source) *SubscriptionManager {
 	subscriptionManager := &SubscriptionManager{
 		topics: make(map[string]*TopicSubscription),
 	}
 
 	for _, topic := range topics {
-		subscriptionManager.topics[topic] = NewTopicSubscription(topic, redisSource)
+		subscriptionManager.topics[topic] = NewTopicSubscription(topic, source)
 	}
 
 	go subscriptionManager.monitor()
@@ -32,14 +31,14 @@ func NewSubscriptionManager(topics []string, redisSource *source.RedisSource) *S
 	return subscriptionManager
 }
 
-// Subscribe adds a new subscriber to the topic.
+// Subscribe 添加一个新的订阅者到主题
 func (sm *SubscriptionManager) Subscribe(topic, typ string, c *websocket.Conn) {
 	sm.mu.Lock()
 	sm.topics[topic].Add(typ, c)
 	sm.mu.Unlock()
 }
 
-// Unsubscribe removes a subscriber from the topic.
+// Unsubscribe 从主题中删除一个订阅者
 func (sm *SubscriptionManager) Unsubscribe(topic, typ string, conn *websocket.Conn) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -48,7 +47,7 @@ func (sm *SubscriptionManager) Unsubscribe(topic, typ string, conn *websocket.Co
 	}
 }
 
-// monitor monitors the topics and their subscribers.
+// monitor 监控主题和订阅者
 func (sm *SubscriptionManager) monitor() {
 	for {
 		sm.mu.RLock()

@@ -1,37 +1,47 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"pusher/config"
 	"pusher/internal/source"
 	"pusher/internal/ws"
 	"pusher/pkg/logger"
 	"pusher/pkg/redis"
 )
 
+var (
+	path = flag.String("cfg", "./config/config.yaml", "config file path")
+)
+
 func main() {
-	logger.Init()
+	flag.Parse()
 
-	client, err := redis.Init()
+	conf, err := config.LoadConfig(*path)
 	if err != nil {
-		logger.Fatalf("failed to connect to redis: %v", err)
+		panic(fmt.Sprintf("load config failed: %v", err))
 	}
 
-	redisSource := source.NewRedisSource(client)
+	logger.Init(&conf.Logger)
 
-	logger.Info("starting websocket server...")
-
-	topics := []string{"topic1", "topic2", "topic3", "topic4", "topic5", "topic6", "topic7", "topic8", "topic9", "topic10", "topic11", "topic12", "topic13", "topic14", "topic15", "topic16", "topic17", "topic18", "topic19", "topic20", "topic21", "topic22", "topic23", "topic24", "topic25"}
-
-	handler := ws.DefaultHandler{
-		SubscriptionManager: ws.NewSubscriptionManager(topics, redisSource),
+	client, err := redis.Init(&conf.Redis)
+	if err != nil {
+		panic(fmt.Sprintf("failed to connect to redis: %v", err))
 	}
 
-	server := ws.NewWebsocketServer(ws.DefaultConfig(), &handler)
+	manager := ws.NewSubscriptionManager(
+		conf.Source.Redis,
+		source.NewRedisSource(client),
+	)
+
+	handler := ws.DefaultHandler{SubscriptionManager: manager}
+
+	server := ws.NewWebsocketServer(&conf.APP, &handler)
 	if err := server.Run(); err != nil {
-		panic(err)
+		logger.Fatalf("failed to start websocket server: %v", err)
 	}
 
-	logger.Info("websocket server started...")
+	logger.Info("websocket server started and running...")
 
-	quit := make(chan struct{})
-	<-quit
+	select {}
 }

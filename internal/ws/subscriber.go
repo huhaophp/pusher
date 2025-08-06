@@ -16,7 +16,7 @@ type Subscriber struct {
 	sendChan chan types.Data // 推送通道
 }
 
-// NewSubscriber creates a new subscriber.
+// NewSubscriber 创建一个订阅者
 func NewSubscriber(conn *websocket.Conn) *Subscriber {
 	s := &Subscriber{
 		isClosed: false,
@@ -27,7 +27,7 @@ func NewSubscriber(conn *websocket.Conn) *Subscriber {
 	return s
 }
 
-// Send sends the message to the connection.
+// Send 发送消息到连接
 func (s *Subscriber) Send(data *types.Data) {
 	select {
 	case s.sendChan <- *data:
@@ -36,7 +36,7 @@ func (s *Subscriber) Send(data *types.Data) {
 	}
 }
 
-// writeLoop writes the message to the connection.
+// writeLoop 写入循环
 func (s *Subscriber) writeLoop() {
 	for data := range s.sendChan {
 		msg, err := json.Marshal(data)
@@ -55,7 +55,7 @@ func (s *Subscriber) writeLoop() {
 	}
 }
 
-// GetCloseState gets the close state of the connection.
+// GetCloseState 获取关闭状态
 func (s *Subscriber) GetCloseState() bool {
 	return s.isClosed
 }

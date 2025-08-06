@@ -14,10 +14,12 @@ type DefaultHandler struct {
 	SubscriptionManager *SubscriptionManager
 }
 
+// OnOpen 当连接打开时调用
 func (h *DefaultHandler) OnOpen(c *websocket.Conn) {
 	logger.Infof("connection opened: %s", c.RemoteAddr().String())
 }
 
+// OnMessage 当客户端发送消息时调用
 func (h *DefaultHandler) OnMessage(c *websocket.Conn, _ websocket.MessageType, data []byte) {
 	var request types.Request
 	if err := json.Unmarshal(data, &request); err != nil {
@@ -39,10 +41,12 @@ func (h *DefaultHandler) OnMessage(c *websocket.Conn, _ websocket.MessageType, d
 	handlers[request.Action](c, &request)
 }
 
+// OnClose 当连接关闭时调用
 func (h *DefaultHandler) OnClose(c *websocket.Conn, err error) {
 	logger.Infof("connection closed: %s, err: %v", c.RemoteAddr().String(), err)
 }
 
+// onSubscribe 当客户端订阅主题时调用
 func (h *DefaultHandler) onSubscribe(c *websocket.Conn, request *types.Request) {
 	h.SubscriptionManager.Subscribe(request.Params.Topic, request.Params.Type, c)
 
@@ -56,6 +60,7 @@ func (h *DefaultHandler) onSubscribe(c *websocket.Conn, request *types.Request) 
 	h.Response(c, &resp)
 }
 
+// onUnsubscribe 当客户端取消订阅主题时调用
 func (h *DefaultHandler) onUnsubscribe(c *websocket.Conn, request *types.Request) {
 	h.SubscriptionManager.Unsubscribe(request.Params.Topic, request.Params.Type, c)
 
@@ -69,6 +74,7 @@ func (h *DefaultHandler) onUnsubscribe(c *websocket.Conn, request *types.Request
 	h.Response(c, &resp)
 }
 
+// onPing 当客户端发送ping消息时调用
 func (h *DefaultHandler) onPing(c *websocket.Conn, request *types.Request) {
 	err := c.SetDeadline(time.Now().Add(types.ConnDeadlineTime))
 	if err != nil {
@@ -91,6 +97,7 @@ func (h *DefaultHandler) onPing(c *websocket.Conn, request *types.Request) {
 	h.Response(c, &resp)
 }
 
+// Response 发送响应到客户端
 func (h *DefaultHandler) Response(c *websocket.Conn, response *types.Response) {
 	data, err := json.Marshal(response)
 	if err != nil {

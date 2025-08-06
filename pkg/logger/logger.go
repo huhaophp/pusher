@@ -1,83 +1,65 @@
 package logger
 
 import (
-	"github.com/sirupsen/logrus"
 	"os"
+	"pusher/config"
+
+	"github.com/sirupsen/logrus"
 )
 
 var log *logrus.Logger
 
-// Init 初始化日志系统
-func Init() {
+func Init(conf *config.LoggerConfig) {
 	log = logrus.New()
 
-	// 设置日志级别
-	level, err := logrus.ParseLevel("debug")
+	level, err := logrus.ParseLevel(conf.Level)
 	if err != nil {
 		level = logrus.InfoLevel
 	}
+
 	log.SetLevel(level)
 
 	log.SetFormatter(&logrus.JSONFormatter{})
 
-	// 设置输出
 	log.SetOutput(os.Stdout)
 }
 
-// GetLogger 获取日志实例
-func GetLogger() *logrus.Logger {
-	if log == nil {
-		Init()
-	}
-	return log
+func Info(args ...any) {
+	log.Info(args...)
 }
 
-// Info 记录信息日志
-func Info(args ...interface{}) {
-	GetLogger().Info(args...)
+func Infof(format string, args ...any) {
+	log.Infof(format, args...)
 }
 
-// Infof 记录格式化信息日志
-func Infof(format string, args ...interface{}) {
-	GetLogger().Infof(format, args...)
+func Error(args ...any) {
+	log.Error(args...)
 }
 
-// Error 记录错误日志
-func Error(args ...interface{}) {
-	GetLogger().Error(args...)
+func Errorf(format string, args ...any) {
+	log.Errorf(format, args...)
 }
 
-// Errorf 记录格式化错误日志
-func Errorf(format string, args ...interface{}) {
-	GetLogger().Errorf(format, args...)
+func Warn(args ...any) {
+	log.Warn(args...)
 }
 
-// Warn 记录警告日志
-func Warn(args ...interface{}) {
-	GetLogger().Warn(args...)
+func Warnf(format string, args ...any) {
+	log.Warnf(format, args...)
 }
 
-// Warnf 记录格式化警告日志
-func Warnf(format string, args ...interface{}) {
-	GetLogger().Warnf(format, args...)
+func Debug(args ...any) {
+	log.Debug(args...)
 }
 
-// Debug 记录调试日志
-func Debug(args ...interface{}) {
-	GetLogger().Debug(args...)
+func Debugf(format string, args ...any) {
+	log.Debugf(format, args...)
 }
 
-// Debugf 记录格式化调试日志
-func Debugf(format string, args ...interface{}) {
-	GetLogger().Debugf(format, args...)
+func Fatal(args ...any) {
+	log.Fatal(args...)
 }
 
-// Fatal 记录致命错误日志并退出
-func Fatal(args ...interface{}) {
-	GetLogger().Fatal(args...)
-}
-
-// Fatalf 记录格式化致命错误日志并退出
-func Fatalf(format string, args ...interface{}) {
-	GetLogger().Fatalf(format, args...)
+func Fatalf(format string, args ...any) {
+	log.Fatalf(format, args...)
 }

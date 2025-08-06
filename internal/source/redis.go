@@ -23,7 +23,7 @@ func NewRedisSource(redis *redis.Client) *RedisSource {
 	}
 }
 
-// PullMessage 获取消息.
+// PullMessage 拉取消息
 func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler func(data *types.Data)) error {
 	if r.enableMock {
 		go r.mockMessage(topic)
@@ -33,7 +33,7 @@ func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler fun
 	if _, err := subscribe.Receive(ctx); err != nil {
 		return fmt.Errorf("receive error: %w", err)
 	}
-	logger.Infof("RedisSource subscribe %s success", topic)
+	logger.Infof("redis source subscribe %s success", topic)
 	for {
 		select {
 		case msg := <-subscribe.Channel():
@@ -55,6 +55,7 @@ func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler fun
 	}
 }
 
+// mockMessage 模拟消息
 func (r *RedisSource) mockMessage(topic string) {
 	for {
 		marshal, _ := json.Marshal(map[string]any{

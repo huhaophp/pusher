@@ -2,14 +2,16 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"github.com/redis/go-redis/v9"
+	"pusher/config"
 )
 
-func Init() (*redis.Client, error) {
+func Init(conf *config.RedisConfig) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     fmt.Sprintf("%s:%s", conf.Host, conf.Port),
+		Password: conf.Password,
+		DB:       conf.DB,
 	})
 	err := rdb.Ping(context.Background()).Err()
 	if err != nil {

@@ -13,12 +13,11 @@ type TopicSubscription struct {
 	Topic       string
 	subscribers map[string]map[*websocket.Conn]*Subscriber
 	mu          sync.RWMutex
-	source      *source.RedisSource
-	ch          chan []byte
+	source      source.Source
 }
 
-// NewTopicSubscription creates a new topic subscription.
-func NewTopicSubscription(topic string, redisSource *source.RedisSource) *TopicSubscription {
+// NewTopicSubscription 创建一个新的主题订阅
+func NewTopicSubscription(topic string, redisSource source.Source) *TopicSubscription {
 	topicSubscription := &TopicSubscription{
 		Topic:       topic,
 		source:      redisSource,
@@ -30,12 +29,12 @@ func NewTopicSubscription(topic string, redisSource *source.RedisSource) *TopicS
 	return topicSubscription
 }
 
-// start starts the topic subscription.
+// start 启动主题订阅
 func (ts *TopicSubscription) start() {
 	ts.source.PullMessage(context.Background(), ts.Topic, ts.onMessage)
 }
 
-// onMessage handles the message from the source.
+// onMessage 处理来自源的消息
 func (ts *TopicSubscription) onMessage(data *types.Data) {
 	for conn, subscriber := range ts.subscribers[data.Type] {
 		if subscriber.isClosed {
@@ -46,7 +45,7 @@ func (ts *TopicSubscription) onMessage(data *types.Data) {
 	}
 }
 
-// Add adds a new subscriber to the topic.
+// Add 添加一个新的订阅者到主题
 func (ts *TopicSubscription) Add(typ string, c *websocket.Conn) {
 	ts.mu.Lock()
 	if _, ok := ts.subscribers[typ]; !ok {
@@ -56,7 +55,7 @@ func (ts *TopicSubscription) Add(typ string, c *websocket.Conn) {
 	ts.mu.Unlock()
 }
 
-// Remove removes a subscriber from the topic.
+// Remove 从主题中删除一个订阅者
 func (ts *TopicSubscription) Remove(typ string, conn *websocket.Conn) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()

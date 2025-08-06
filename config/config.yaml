@@ -1,0 +1,19 @@
+app:
+  name: pusher
+  port: 8080
+  env: local # local, dev, prod
+
+redis:  
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+source:
+  redis:
+    - "topic1"
+  kafka:
+    - "topic2"
+
+logger:
+  level: debug

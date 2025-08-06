@@ -16,19 +16,21 @@ type DefaultHandler struct {
 
 // OnOpen 当连接打开时调用
 func (h *DefaultHandler) OnOpen(c *websocket.Conn) {
-	logger.Infof("connection opened: %s", c.RemoteAddr().String())
+	logger.Debugf("connection opened, remote address: %s", c.RemoteAddr().String())
 }
 
 // OnMessage 当客户端发送消息时调用
 func (h *DefaultHandler) OnMessage(c *websocket.Conn, _ websocket.MessageType, data []byte) {
 	var request types.Request
 	if err := json.Unmarshal(data, &request); err != nil {
-		logger.Errorf("unmarshal failed, err: %+v", err)
+		logger.Errorf("unmarshal failed, err: %+v, remote address: %s", err, c.RemoteAddr().String())
 		return
 	}
 
+	logger.Debugf("received message: %+v, remote address: %s", request, c.RemoteAddr().String())
+
 	if !slices.Contains(types.AllAction, request.Action) {
-		logger.Errorf("invalid action: %s", request.Action)
+		logger.Errorf("invalid action: %s, remote address: %s", request.Action, c.RemoteAddr().String())
 		return
 	}
 
@@ -43,7 +45,7 @@ func (h *DefaultHandler) OnMessage(c *websocket.Conn, _ websocket.MessageType, d
 
 // OnClose 当连接关闭时调用
 func (h *DefaultHandler) OnClose(c *websocket.Conn, err error) {
-	logger.Infof("connection closed: %s, err: %v", c.RemoteAddr().String(), err)
+	logger.Debugf("connection closed, remote address: %s, err: %v", c.RemoteAddr().String(), err)
 }
 
 // onSubscribe 当客户端订阅主题时调用

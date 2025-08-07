@@ -7,7 +7,7 @@ import (
 	"pusher/config"
 )
 
-func Init(conf *config.RedisConfig) (*redis.Client, error) {
+func InitClient(conf *config.RedisConfig) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", conf.Host, conf.Port),
 		Password: conf.Password,

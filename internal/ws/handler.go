@@ -50,57 +50,32 @@ func (h *DefaultHandler) OnClose(c *websocket.Conn, err error) {
 
 // onSubscribe 当客户端订阅主题时调用
 func (h *DefaultHandler) onSubscribe(c *websocket.Conn, request *types.Request) {
-	h.SubscriptionManager.Subscribe(request.Params.Topic, request.Params.Type, c)
-
-	resp := types.Response{
-		Action:    request.Action,
-		RequestID: request.RequestID,
-		Timestamp: time.Now().UnixMilli(),
-		Status:    types.StatusOK,
+	err := h.SubscriptionManager.Subscribe(request.Params.Topic, request.Params.Type, c)
+	if err != nil {
+		h.respondError(c, request, err)
+		return
 	}
-
-	h.Response(c, &resp)
+	h.respondSuccess(c, request)
 }
 
 // onUnsubscribe 当客户端取消订阅主题时调用
 func (h *DefaultHandler) onUnsubscribe(c *websocket.Conn, request *types.Request) {
 	h.SubscriptionManager.Unsubscribe(request.Params.Topic, request.Params.Type, c)
-
-	resp := types.Response{
-		Action:    request.Action,
-		RequestID: request.RequestID,
-		Timestamp: time.Now().UnixMilli(),
-		Status:    types.StatusOK,
-	}
-
-	h.Response(c, &resp)
+	h.respondSuccess(c, request)
 }
 
 // onPing 当客户端发送ping消息时调用
 func (h *DefaultHandler) onPing(c *websocket.Conn, request *types.Request) {
 	err := c.SetDeadline(time.Now().Add(types.ConnDeadlineTime))
 	if err != nil {
-		logger.Errorf("set deadline failed, err: %+v", err)
-		h.Response(c, &types.Response{
-			Action:    request.Action,
-			RequestID: request.RequestID,
-			Timestamp: time.Now().UnixMilli(),
-			Status:    types.StatusFail,
-			ErrorMsg:  err.Error(),
-		})
+		h.respondError(c, request, err)
 		return
 	}
-	resp := types.Response{
-		Action:    request.Action,
-		RequestID: request.RequestID,
-		Timestamp: time.Now().UnixMilli(),
-		Status:    types.StatusOK,
-	}
-	h.Response(c, &resp)
+	h.respondSuccess(c, request)
 }
 
 // Response 发送响应到客户端
-func (h *DefaultHandler) Response(c *websocket.Conn, response *types.Response) {
+func (h *DefaultHandler) response(c *websocket.Conn, response *types.Response) {
 	data, err := json.Marshal(response)
 	if err != nil {
 		logger.Errorf("json marshal failed, err: %+v", err)
@@ -108,6 +83,26 @@ func (h *DefaultHandler) Response(c *websocket.Conn, response *types.Response) {
 	}
 	err = c.WriteMessage(websocket.TextMessage, data)
 	if err != nil {
-		logger.Errorf("write message failed, err: %+v", err)
+		logger.Errorf("write message fail	ed, err: %+v", err)
 	}
+}
+
+func (h *DefaultHandler) respondSuccess(c *websocket.Conn, request *types.Request) {
+	h.response(c, &types.Response{
+		Action:    request.Action,
+		RequestID: request.RequestID,
+		Timestamp: time.Now().UnixMilli(),
+		Status:    types.StatusOK,
+	})
+}
+
+func (h *DefaultHandler) respondError(c *websocket.Conn, request *types.Request, err error) {
+	logger.Errorf("action %s failed, err: %+v", request.Action, err)
+	h.response(c, &types.Response{
+		Action:    request.Action,
+		RequestID: request.RequestID,
+		Timestamp: time.Now().UnixMilli(),
+		Status:    types.StatusFail,
+		ErrorMsg:  err.Error(),
+	})
 }

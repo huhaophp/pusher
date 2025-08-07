@@ -6,8 +6,10 @@ import (
 	"pusher/config"
 	"pusher/internal/source"
 	"pusher/internal/ws"
+	"pusher/pkg/kafka"
 	"pusher/pkg/logger"
 	"pusher/pkg/redis"
+	"pusher/pkg/utils"
 )
 
 var (
@@ -24,24 +26,31 @@ func main() {
 
 	logger.Init(&conf.Logger)
 
-	client, err := redis.Init(&conf.Redis)
+	redisClient, err := redis.InitClient(&conf.Redis)
 	if err != nil {
-		panic(fmt.Sprintf("failed to connect to redis: %v", err))
+		logger.Fatalf("failed to connect to redis: %v", err)
 	}
 
-	manager := ws.NewSubscriptionManager(
-		conf.Source.Redis,
-		source.NewRedisSource(client),
-	)
+	kafkaClient, err := kafka.InitConsumer(&conf.Kafka)
+	if err != nil {
+		logger.Fatalf("failed to connect to kafka: %v", err)
+	}
 
-	handler := ws.DefaultHandler{SubscriptionManager: manager}
+	redisTopicPuller := source.NewTopicPuller(conf.Source.Redis, source.NewRedisSource(redisClient))
+	kafkaTopicPuller := source.NewTopicPuller(conf.Source.Kafka, source.NewKafkaSource(kafkaClient))
 
-	server := ws.NewWebsocketServer(&conf.APP, &handler)
+	subscriptionManager := ws.NewSubscriptionManager(redisTopicPuller, kafkaTopicPuller)
+
+	server := ws.NewWebsocketServer(&conf.APP, &ws.DefaultHandler{
+		SubscriptionManager: subscriptionManager,
+	})
 	if err := server.Run(); err != nil {
 		logger.Fatalf("failed to start websocket server: %v", err)
 	}
 
 	logger.Info("websocket server started and running...")
 
-	select {}
+	utils.WaitForShutdown()
+
+	logger.Infof("websocket server shutdown success...")
 }

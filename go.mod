@@ -3,10 +3,11 @@ module pusher
 go 1.24
 
 require (
+	github.com/confluentinc/confluent-kafka-go/v2 v2.11.0
 	github.com/lesismal/nbio v1.6.6
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/sirupsen/logrus v1.9.3
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

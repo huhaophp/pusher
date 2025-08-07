@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"fmt"
 	"pusher/internal/source"
 	"pusher/pkg/logger"
 	"sync"
@@ -11,19 +12,22 @@ import (
 
 // SubscriptionManager 管理主题和订阅者
 type SubscriptionManager struct {
-	topics map[string]*TopicSubscription
-	mu     sync.RWMutex
+	subscriptions map[string]*TopicSubscription
+	mu            sync.RWMutex
 }
 
 // NewSubscriptionManager 创建一个新的订阅管理器
-// 它初始化主题并启动监控
-func NewSubscriptionManager(topics []string, source source.Source) *SubscriptionManager {
+func NewSubscriptionManager(redisTopicPuller *source.TopicPuller, kafkaTopicPuller *source.TopicPuller) *SubscriptionManager {
 	subscriptionManager := &SubscriptionManager{
-		topics: make(map[string]*TopicSubscription),
+		subscriptions: make(map[string]*TopicSubscription),
 	}
 
-	for _, topic := range topics {
-		subscriptionManager.topics[topic] = NewTopicSubscription(topic, source)
+	for _, topic := range redisTopicPuller.Topics {
+		subscriptionManager.subscriptions[topic] = NewTopicSubscription(topic, redisTopicPuller.Source)
+	}
+
+	for _, topic := range kafkaTopicPuller.Topics {
+		subscriptionManager.subscriptions[topic] = NewTopicSubscription(topic, kafkaTopicPuller.Source)
 	}
 
 	go subscriptionManager.monitor()
@@ -32,17 +36,23 @@ func NewSubscriptionManager(topics []string, source source.Source) *Subscription
 }
 
 // Subscribe 添加一个新的订阅者到主题
-func (sm *SubscriptionManager) Subscribe(topic, typ string, c *websocket.Conn) {
+func (sm *SubscriptionManager) Subscribe(topic, typ string, c *websocket.Conn) error {
 	sm.mu.Lock()
-	sm.topics[topic].Add(typ, c)
-	sm.mu.Unlock()
+	defer sm.mu.Unlock()
+	sub, ok := sm.subscriptions[topic]
+	if !ok {
+		logger.Warnf("subscribe called for unknown topic: %s", topic)
+		return fmt.Errorf("subscribe called for unknown topic: %s", topic)
+	}
+	sub.Add(typ, c)
+	return nil
 }
 
 // Unsubscribe 从主题中删除一个订阅者
 func (sm *SubscriptionManager) Unsubscribe(topic, typ string, conn *websocket.Conn) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	if t, ok := sm.topics[topic]; ok {
+	if t, ok := sm.subscriptions[topic]; ok {
 		t.Remove(typ, conn)
 	}
 }
@@ -51,7 +61,7 @@ func (sm *SubscriptionManager) Unsubscribe(topic, typ string, conn *websocket.Co
 func (sm *SubscriptionManager) monitor() {
 	for {
 		sm.mu.RLock()
-		for topic, t := range sm.topics {
+		for topic, t := range sm.subscriptions {
 			for typ, subscribers := range t.subscribers {
 				logger.Infof("topic: %s, type: %s, subscribers: %d", topic, typ, len(subscribers))
 			}

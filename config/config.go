@@ -9,6 +9,7 @@ import (
 type Config struct {
 	APP    APP          `yaml:"app"`
 	Redis  RedisConfig  `yaml:"redis"`
+	Kafka  KafkaConfig  `yaml:"kafka"`
 	Source SourceConfig `yaml:"source"`
 	Logger LoggerConfig `yaml:"logger"`
 }
@@ -33,6 +34,10 @@ type SourceConfig struct {
 
 type LoggerConfig struct {
 	Level string `yaml:"level"`
+}
+
+type KafkaConfig struct {
+	Servers string `yaml:"servers"`
 }
 
 func LoadConfig(path string) (*Config, error) {

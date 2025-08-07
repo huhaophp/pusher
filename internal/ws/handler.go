@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"pusher/internal/types"
 	"pusher/pkg/logger"
-	"slices"
 	"time"
 
 	"github.com/lesismal/nbio/nbhttp/websocket"
@@ -29,18 +28,19 @@ func (h *DefaultHandler) OnMessage(c *websocket.Conn, _ websocket.MessageType, d
 
 	logger.Debugf("received message: %+v, remote address: %s", request, c.RemoteAddr().String())
 
-	if !slices.Contains(types.AllAction, request.Action) {
-		logger.Errorf("invalid action: %s, remote address: %s", request.Action, c.RemoteAddr().String())
-		return
-	}
-
 	handlers := map[string]func(*websocket.Conn, *types.Request){
 		types.ActionSubscribe:   h.onSubscribe,
 		types.ActionUnsubscribe: h.onUnsubscribe,
 		types.ActionPing:        h.onPing,
 	}
 
-	handlers[request.Action](c, &request)
+	handler, ok := handlers[request.Action]
+	if !ok {
+		logger.Errorf("invalid action: %s, remote address: %s", request.Action, c.RemoteAddr().String())
+		return
+	}
+
+	handler(c, &request)
 }
 
 // OnClose 当连接关闭时调用

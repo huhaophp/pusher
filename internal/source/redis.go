@@ -61,7 +61,7 @@ func (r *RedisSource) mockMessage(topic string) {
 		marshal, _ := json.Marshal(map[string]any{
 			"topic":   "topic1",
 			"type":    "test",
-			"payload": `{"username": "123", "nickname": "123"}`,
+			"payload": `{"a": "a", "b": "b"}`,
 		})
 		r.redis.Publish(context.Background(), topic, marshal)
 		time.Sleep(time.Second * 1)

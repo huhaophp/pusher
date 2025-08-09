@@ -6,7 +6,6 @@ import (
 	"pusher/config"
 	"pusher/internal/source"
 	"pusher/internal/ws"
-	"pusher/pkg/kafka"
 	"pusher/pkg/logger"
 	"pusher/pkg/redis"
 	"pusher/pkg/utils"
@@ -31,13 +30,8 @@ func main() {
 		logger.Fatalf("failed to connect to redis: %v", err)
 	}
 
-	kafkaClient, err := kafka.InitConsumer(&conf.Kafka)
-	if err != nil {
-		logger.Fatalf("failed to connect to kafka: %v", err)
-	}
-
 	redisTopicPuller := source.NewTopicPuller(conf.Source.Redis, source.NewRedisSource(redisClient))
-	kafkaTopicPuller := source.NewTopicPuller(conf.Source.Kafka, source.NewKafkaSource(kafkaClient))
+	kafkaTopicPuller := source.NewTopicPuller(conf.Source.Kafka, source.NewKafkaSource(&conf.Kafka))
 
 	subscriptionManager := ws.NewSubscriptionManager(redisTopicPuller, kafkaTopicPuller)
 

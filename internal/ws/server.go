@@ -30,10 +30,6 @@ type WebsocketServer struct {
 
 // NewWebsocketServer 创建一个新的WebSocket服务器实例
 func NewWebsocketServer(config *config.APP, handler Handler) *WebsocketServer {
-	if handler == nil {
-		handler = &DefaultHandler{}
-	}
-
 	upgrader := websocket.NewUpgrader()
 
 	ws := &WebsocketServer{
@@ -43,7 +39,7 @@ func NewWebsocketServer(config *config.APP, handler Handler) *WebsocketServer {
 		conns:    make(map[*websocket.Conn]struct{}),
 	}
 
-	go ws.monitor()
+	// go ws.monitor()
 
 	// 注册回调
 	ws.upgrader.OnOpen(ws.onOpen)

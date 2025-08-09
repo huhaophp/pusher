@@ -14,9 +14,12 @@ source:
     - "topic1"
   kafka:
     - "topic2"
+    - "topic3"
 
 logger:
   level: debug
 
 kafka:
   servers: "localhost"
+  group_id: "consumer"
+  auto_offset_reset: "latest"

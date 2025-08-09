@@ -16,7 +16,7 @@ func WaitForShutdown() {
 	sig := <-quit
 	logger.Infof("received signal: %s", sig.String())
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	<-ctx.Done()

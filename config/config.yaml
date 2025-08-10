@@ -3,6 +3,10 @@ app:
   port: 8081
   env: local # local, dev, prod
 
+pprof:
+  enable: true
+  prot: 6060
+
 redis:  
   host: localhost
   port: 6379
@@ -17,9 +21,9 @@ source:
     - "topic3"
 
 logger:
-  level: debug
+  level: info
 
 kafka:
   servers: "localhost"
-  group_id: "consumer"
-  auto_offset_reset: "latest"
+  groupID: "consumer"
+  autoOffsetReset: "latest"

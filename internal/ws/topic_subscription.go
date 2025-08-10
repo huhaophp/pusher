@@ -2,11 +2,10 @@ package ws
 
 import (
 	"context"
+	"github.com/lesismal/nbio/nbhttp/websocket"
 	"pusher/internal/source"
 	"pusher/internal/types"
 	"sync"
-
-	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
 type TopicSubscription struct {
@@ -36,6 +35,8 @@ func (ts *TopicSubscription) start() {
 
 // onMessage 处理来自源的消息
 func (ts *TopicSubscription) onMessage(data *types.Data) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
 	for conn, subscriber := range ts.subscribers[data.Type] {
 		if subscriber.isClosed {
 			ts.Remove(data.Type, conn)

@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"pusher/config"
 	"pusher/internal/source"
 	"pusher/internal/ws"
@@ -27,7 +29,7 @@ func main() {
 
 	redisClient, err := redis.InitClient(&conf.Redis)
 	if err != nil {
-		logger.Fatalf("failed to connect to redis: %v", err)
+		logger.GetLogger().Fatalf("failed to connect to redis: %v", err)
 	}
 
 	redisTopicPuller := source.NewTopicPuller(conf.Source.Redis, source.NewRedisSource(redisClient))
@@ -39,12 +41,18 @@ func main() {
 		SubscriptionManager: subscriptionManager,
 	})
 	if err := server.Run(); err != nil {
-		logger.Fatalf("failed to start websocket server: %v", err)
+		logger.GetLogger().Fatalf("failed to start websocket server: %v", err)
 	}
 
-	logger.Info("websocket server started and running...")
+	if conf.PProf.Enable {
+		go func() {
+			logger.GetLogger().Println(http.ListenAndServe(fmt.Sprintf(":%s", conf.PProf.Port), nil))
+		}()
+	}
+
+	logger.GetLogger().Info("websocket server started and running...")
 
 	utils.WaitForShutdown()
 
-	logger.Infof("websocket server shutdown success...")
+	logger.GetLogger().Info("websocket server shutdown success...")
 }

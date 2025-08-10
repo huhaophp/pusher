@@ -52,7 +52,7 @@ func NewWebsocketServer(config *config.APP, handler Handler) *WebsocketServer {
 // onWebsocket 升级连接到WebSocket
 func (ws *WebsocketServer) onWebsocket(w http.ResponseWriter, r *http.Request) {
 	if _, err := ws.upgrader.Upgrade(w, r, nil); err != nil {
-		logger.Infof("upgrade failed: %v", err)
+		logger.GetLogger().Infof("upgrade failed: %v", err)
 		http.Error(w, "upgrade failed", http.StatusInternalServerError)
 	}
 }
@@ -99,7 +99,7 @@ func (ws *WebsocketServer) GetConnAll() map[*websocket.Conn]struct{} {
 func (ws *WebsocketServer) monitor() {
 	for {
 		ws.mu.RLock()
-		logger.Infof("current connections: %d, connections: %+v", len(ws.conns), ws.conns)
+		logger.GetLogger().Infof("current connections: %d, connections: %+v", len(ws.conns), ws.conns)
 		ws.mu.RUnlock()
 		time.Sleep(time.Second * 5)
 	}
@@ -124,7 +124,7 @@ func (ws *WebsocketServer) Run() error {
 		return err
 	}
 
-	logger.Infof("ws server started at %s", ws.config.Port)
+	logger.GetLogger().Infof("ws server started at %s", ws.config.Port)
 
 	return nil
 }

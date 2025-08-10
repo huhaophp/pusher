@@ -13,6 +13,7 @@ type Config struct {
 	Kafka  KafkaConfig  `yaml:"kafka"`
 	Source SourceConfig `yaml:"source"`
 	Logger LoggerConfig `yaml:"logger"`
+	PProf  PProfConfig  `yaml:"pprof"`
 }
 
 type APP struct {
@@ -39,8 +40,13 @@ type LoggerConfig struct {
 
 type KafkaConfig struct {
 	Servers         string `yaml:"servers"`
-	GroupID         string `yaml:"group_id"`
-	AutoOffsetReset string `yaml:"auto_offset_reset"`
+	GroupID         string `yaml:"groupID"`
+	AutoOffsetReset string `yaml:"autoOffsetReset"`
+}
+
+type PProfConfig struct {
+	Port   string `yaml:"port"`
+	Enable bool   `yaml:"enable"`
 }
 
 func LoadConfig(path string) (*Config, error) {

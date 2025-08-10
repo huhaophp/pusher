@@ -32,7 +32,7 @@ func (s *Subscriber) Send(data *types.Data) {
 	select {
 	case s.sendChan <- *data:
 	default:
-		logger.Warnf("[subscriber] send buffer full, dropping message for conn %s", s.conn.RemoteAddr())
+		logger.GetLogger().Warnf("[subscriber] send buffer full, dropping message for conn %s", s.conn.RemoteAddr())
 	}
 }
 
@@ -41,12 +41,12 @@ func (s *Subscriber) writeLoop() {
 	for data := range s.sendChan {
 		msg, err := json.Marshal(data)
 		if err != nil {
-			logger.Warnf("[subscriber] Marshal error: %v", err)
+			logger.GetLogger().Warnf("[subscriber] Marshal error: %v", err)
 			continue
 		}
 		err = s.conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			logger.Warnf("[subscriber] write failed: %v", err)
+			logger.GetLogger().Warnf("[subscriber] write failed: %v", err)
 			if errors.Is(err, net.ErrClosed) {
 				s.isClosed = true
 				return

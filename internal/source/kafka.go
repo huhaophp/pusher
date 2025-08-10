@@ -28,7 +28,7 @@ func (k *KafkaSource) PullMessage(ctx context.Context, topic string, handler fun
 			if errors.Is(err, context.Canceled) {
 				return nil // 上下文结束，正常退出
 			}
-			logger.Errorf("Kafka consume error: %v, retrying in 5s...", err)
+			logger.GetLogger().Errorf("Kafka consume error: %v, retrying in 5s...", err)
 			time.Sleep(5 * time.Second)
 		}
 	}
@@ -42,7 +42,7 @@ func (k *KafkaSource) consumeLoop(ctx context.Context, topic string, handler fun
 		Topic:       topic,
 	})
 	defer reader.Close()
-	logger.Infof("Kafka consumer started for topic: %s", topic)
+	logger.GetLogger().WithField("indexer", "KafkaSource").Infof("Kafka consumer started for topic: %s", topic)
 	for {
 		select {
 		case <-ctx.Done():
@@ -55,7 +55,7 @@ func (k *KafkaSource) consumeLoop(ctx context.Context, topic string, handler fun
 
 			var data types.Data
 			if err := json.Unmarshal(msg.Value, &data); err != nil {
-				logger.Errorf("Unmarshal error: %v", err)
+				logger.GetLogger().Errorf("Unmarshal error: %v", err)
 				continue
 			}
 			handler(&data)

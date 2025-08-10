@@ -33,23 +33,23 @@ func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler fun
 	if _, err := subscribe.Receive(ctx); err != nil {
 		return fmt.Errorf("receive error: %w", err)
 	}
-	logger.Infof("redis source subscribe %s success", topic)
+	logger.GetLogger().WithField("indexer", "RedisSource").Infof("redis consumer started for topic: %s", topic)
 	for {
 		select {
 		case msg := <-subscribe.Channel():
 			if msg == nil {
-				logger.Info("msg is nil")
+				logger.GetLogger().Info("msg is nil")
 				continue
 			}
 			var data types.Data
 			if err := json.Unmarshal([]byte(msg.Payload), &data); err != nil {
-				logger.Infof("json umarshal failed, err: %+v", err)
+				logger.GetLogger().Infof("json umarshal failed, err: %+v", err)
 				continue
 			}
 			data.Meta.ReceiveTime = time.Now()
 			handler(&data)
 		case <-ctx.Done():
-			logger.Info("context done")
+			logger.GetLogger().Info("context done")
 			return nil
 		}
 	}
@@ -64,6 +64,6 @@ func (r *RedisSource) mockMessage(topic string) {
 			"payload": `{"a": "a", "b": "b"}`,
 		})
 		r.redis.Publish(context.Background(), topic, marshal)
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Millisecond)
 	}
 }

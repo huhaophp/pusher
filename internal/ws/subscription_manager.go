@@ -41,7 +41,7 @@ func (sm *SubscriptionManager) Subscribe(topic, typ string, c *websocket.Conn) e
 	defer sm.mu.Unlock()
 	sub, ok := sm.subscriptions[topic]
 	if !ok {
-		logger.Warnf("subscribe called for unknown topic: %s", topic)
+		logger.GetLogger().Warnf("subscribe called for unknown topic: %s", topic)
 		return fmt.Errorf("subscribe called for unknown topic: %s", topic)
 	}
 	sub.Add(typ, c)
@@ -59,14 +59,15 @@ func (sm *SubscriptionManager) Unsubscribe(topic, typ string, conn *websocket.Co
 
 // monitor 监控主题和订阅者
 func (sm *SubscriptionManager) monitor() {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 	for range ticker.C {
 		sm.mu.RLock()
 		for topic, t := range sm.subscriptions {
 			for typ, subscribers := range t.subscribers {
-				logger.Infof("topic: %s, type: %s, subscribers: %d", topic, typ, len(subscribers))
+				logger.GetLogger().Infof("topic: %s, type: %s, subscribers: %d", topic, typ, len(subscribers))
 			}
+
 		}
 		sm.mu.RUnlock()
 	}

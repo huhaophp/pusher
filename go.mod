@@ -3,6 +3,7 @@ module pusher
 go 1.24
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/lesismal/nbio v1.6.6
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/segmentio/kafka-go v0.4.48

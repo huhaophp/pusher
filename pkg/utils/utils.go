@@ -14,7 +14,7 @@ func WaitForShutdown() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-quit
-	logger.Infof("received signal: %s", sig.String())
+	logger.GetLogger().Infof("received signal: %s", sig.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

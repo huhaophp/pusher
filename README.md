@@ -10,12 +10,12 @@ pusher 是一个基于 nbio 构建的高性能 WebSocket 推送服务，支持�
 
 ```json
 {
-  "request_id": "abc123",
+  "request_id": "unique-id",
   "timestamp": 1720343200000,
   "action": "subscribe",
   "params": {
-    "topic": "spot.kline.btcusdt",
-    "type": "1m"
+    "topic": "order",
+    "type": "event"
   }
 }
 
@@ -27,7 +27,7 @@ pusher 是一个基于 nbio 构建的高性能 WebSocket 推送服务，支持�
     
 ```json
 {
-  "request_id": "abc123",
+  "request_id": "unique-id",
   "action": "subscribe",
   "status": "ok",
   "error_message": "",
@@ -39,9 +39,9 @@ pusher 是一个基于 nbio 构建的高性能 WebSocket 推送服务，支持�
 
 ```json
 {
-  "topic": "spot.kline.btcusdt",
-  "type": "1m",
-  "payload": "{\"open\":123.45,\"high\":125.6,...}",
+  "topic": "order",
+  "type": "event",
+  "payload": "{\"content\":\"message\"}",
   "meta": {
     "receive_time": "2025-08-06T14:20:00Z",
     "message_id": "msg-001"

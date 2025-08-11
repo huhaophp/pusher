@@ -83,7 +83,7 @@ func main() {
 	var wsURL string
 	var clientCount int
 	flag.StringVar(&wsURL, "url", "ws://127.0.0.1:8081/ws", "WebSocket 服务器地址")
-	flag.IntVar(&clientCount, "n", 1000, "客户端数量")
+	flag.IntVar(&clientCount, "n", 100, "客户端数量")
 	flag.Parse()
 
 	log.Printf("🚀 启动 %d 个 WebSocket 客户端...", clientCount)

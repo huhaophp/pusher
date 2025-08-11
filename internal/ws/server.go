@@ -2,14 +2,13 @@ package ws
 
 import (
 	"fmt"
+	"github.com/lesismal/nbio/nbhttp"
+	"github.com/lesismal/nbio/nbhttp/websocket"
 	"net/http"
 	"pusher/config"
 	"pusher/pkg/logger"
 	"sync"
 	"time"
-
-	"github.com/lesismal/nbio/nbhttp"
-	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
 // Handler 事件处理接口
@@ -31,6 +30,7 @@ type WebsocketServer struct {
 // NewWebsocketServer 创建一个新的WebSocket服务器实例
 func NewWebsocketServer(config *config.APP, handler Handler) *WebsocketServer {
 	upgrader := websocket.NewUpgrader()
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	ws := &WebsocketServer{
 		config:   config,
@@ -39,7 +39,7 @@ func NewWebsocketServer(config *config.APP, handler Handler) *WebsocketServer {
 		conns:    make(map[*websocket.Conn]struct{}),
 	}
 
-	// go ws.monitor()
+	go ws.monitor()
 
 	// 注册回调
 	ws.upgrader.OnOpen(ws.onOpen)
@@ -88,20 +88,19 @@ func (ws *WebsocketServer) remConn(conn *websocket.Conn) {
 	delete(ws.conns, conn)
 }
 
-// GetConnAll 获取所有连接
-func (ws *WebsocketServer) GetConnAll() map[*websocket.Conn]struct{} {
+func (ws *WebsocketServer) GetConnLen() int {
 	ws.mu.RLock()
 	defer ws.mu.RUnlock()
-	return ws.conns
+	return len(ws.conns)
 }
 
 // monitor 监控连接
 func (ws *WebsocketServer) monitor() {
-	for {
+	ticker := time.NewTicker(time.Minute)
+	for range ticker.C {
 		ws.mu.RLock()
 		logger.GetLogger().Infof("current connections: %d, connections: %+v", len(ws.conns), ws.conns)
 		ws.mu.RUnlock()
-		time.Sleep(time.Second * 5)
 	}
 }
 
@@ -123,8 +122,6 @@ func (ws *WebsocketServer) Run() error {
 	if err := engine.Start(); err != nil {
 		return err
 	}
-
-	logger.GetLogger().Infof("ws server started at %s", ws.config.Port)
 
 	return nil
 }

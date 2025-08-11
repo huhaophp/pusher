@@ -57,13 +57,19 @@ func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler fun
 
 // mockMessage 模拟消息
 func (r *RedisSource) mockMessage(topic string) {
-	for {
-		marshal, _ := json.Marshal(map[string]any{
-			"topic":   "topic1",
+	ticker := time.NewTicker(time.Second)
+	for range ticker.C {
+		var customPayload struct {
+			Msg string `json:"msg"`
+		}
+		customPayload.Msg = fmt.Sprintf("hello world, time: %+v", time.Now().Format("2006-01-02 15:04:05"))
+		payload, _ := json.Marshal(customPayload)
+		data, _ := json.Marshal(map[string]any{
+			"topic":   topic,
 			"type":    "test",
-			"payload": `{"a": "a", "b": "b"}`,
+			"payload": string(payload),
 		})
-		r.redis.Publish(context.Background(), topic, marshal)
-		time.Sleep(time.Millisecond)
+		r.redis.Publish(context.Background(), topic, data)
+		time.Sleep(time.Second)
 	}
 }

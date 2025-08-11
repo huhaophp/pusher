@@ -59,7 +59,7 @@ func (sm *SubscriptionManager) Unsubscribe(topic, typ string, conn *websocket.Co
 
 // monitor 监控主题和订阅者
 func (sm *SubscriptionManager) monitor() {
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
 		sm.mu.RLock()

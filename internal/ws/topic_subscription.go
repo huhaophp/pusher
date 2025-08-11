@@ -2,10 +2,12 @@ package ws
 
 import (
 	"context"
-	"github.com/lesismal/nbio/nbhttp/websocket"
 	"pusher/internal/source"
 	"pusher/internal/types"
+	"pusher/pkg/logger"
 	"sync"
+
+	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
 type TopicSubscription struct {
@@ -30,13 +32,14 @@ func NewTopicSubscription(topic string, redisSource source.Source) *TopicSubscri
 
 // start 启动主题订阅
 func (ts *TopicSubscription) start() {
-	ts.source.PullMessage(context.Background(), ts.Topic, ts.onMessage)
+	err := ts.source.PullMessage(context.Background(), ts.Topic, ts.onMessage)
+	if err != nil {
+		logger.GetLogger().Warnf("error pulling message from source: %+v", err)
+	}
 }
 
 // onMessage 处理来自源的消息
 func (ts *TopicSubscription) onMessage(data *types.Data) {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
 	for conn, subscriber := range ts.subscribers[data.Type] {
 		if subscriber.isClosed {
 			ts.Remove(data.Type, conn)

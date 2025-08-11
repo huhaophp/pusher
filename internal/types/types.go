@@ -14,7 +14,6 @@ type Request struct {
 type Params struct {
 	Topic string `json:"topic"` // 订阅主题
 	Type  string `json:"type"`  // 订阅类型
-	Token string `json:"token"` // 私有频道认证 Token（可选）
 }
 
 // Response 响应结构体.

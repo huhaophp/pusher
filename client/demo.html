@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>WebSocket Client Demo</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #f4f4f4;
+        }
+
+        #log {
+            background: #222;
+            color: #eee;
+            padding: 10px;
+            height: 600px;
+            overflow-y: scroll;
+            width: 100%;
+            font-size: 12px;
+        }
+
+        .log-line {
+            margin-bottom: 2px;
+        }
+
+        .success {
+            color: #4CAF50;
+        }
+
+        .error {
+            color: #f44336;
+        }
+
+        .info {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+<h2>🚀 WebSocket 客户端 Demo</h2>
+<p>连接地址<code id="wsUrl">ws://127.0.0.1:8081/ws</code></p>
+<button onclick="startClient()">启动客户端</button>
+<button onclick="stopClient()">停止客户端</button>
+<div id="log"></div>
+
+<script>
+    let ws = null;
+    let pingInterval = null;
+    let clientId = Math.floor(Math.random() * 10000); // 随机客户端ID，仅用于日志区分
+
+    function log(message, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `log-line ${type}`;
+        const time = new Date().toLocaleTimeString();
+        div.textContent = `[${time}] [Client-${clientId}] ${message}`;
+        document.getElementById('log').appendChild(div);
+        document.getElementById('log').scrollTop = document.getElementById('log').scrollHeight;
+    }
+
+    function getTimestamp() {
+        return Date.now(); // 毫秒级时间戳
+    }
+
+    function generateRequestId() {
+        const now = new Date();
+        // 格式类似 "HHmmss" （与 Go 客户端 time.Now().Format("150405") 类似）
+        return now.getHours().toString().padStart(2, '0') +
+            now.getMinutes().toString().padStart(2, '0') +
+            now.getSeconds().toString().padStart(2, '0');
+    }
+
+    function sendMessage(data) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const jsonStr = JSON.stringify(data);
+            ws.send(jsonStr);
+            log(`➡️ 发送: ${jsonStr}`, 'info');
+        } else {
+            log('❌ WebSocket 未连接，无法发送消息', 'error');
+        }
+    }
+
+    function startClient() {
+        const wsUrl = document.getElementById('wsUrl').textContent;
+        log(`🔌 正在连接 WebSocket: ${wsUrl}`, 'info');
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = function () {
+            log('✅ WebSocket 连接已建立', 'success');
+            // 发送订阅消息
+            const sub = {
+                request_id: generateRequestId(),
+                action: "subscribe",
+                timestamp: getTimestamp(),
+                params: {
+                    topic: "topic1",
+                    type: "test"
+                }
+            };
+            sendMessage(sub);
+        };
+
+        ws.onmessage = function (event) {
+            const parse = JSON.parse(event.data);
+            log(`📦 收到订阅消息: ${JSON.stringify(parse, null, 2)}`, 'info')
+            // 如果你想打印具体内容，可以取消下面这行注释（注意：可能包含二进制或不可读JSON）
+            // try {
+            //   const msg = JSON.parse(event.data);
+            //   log(`📦 消息内容: ${JSON.stringify(msg, null, 2)}`, 'info');
+            // } catch (e) {
+            //   log(`📦 原始消息 (非JSON?): ${event.data}`, 'info');
+            // }
+        };
+
+        ws.onerror = function (error) {
+            log('❌ WebSocket 发生错误', 'error');
+            console.error('WebSocket Error:', error);
+        };
+
+        ws.onclose = function () {
+            log('❌ WebSocket 连接已关闭', 'error');
+            stopPing(); // 停止 ping
+        };
+
+        // 每 30 秒发送一次 ping
+        function startPing() {
+            pingInterval = setInterval(() => {
+                const ping = {
+                    request_id: generateRequestId(),
+                    action: "ping",
+                    timestamp: getTimestamp()
+                };
+                sendMessage(ping);
+            }, 30000); // 30s
+        }
+
+        function stopPing() {
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
+        }
+
+        startPing(); // 启动定时 ping
+    }
+
+    function stopClient() {
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+        stopPing();
+        log('⏹️ 客户端已停止', 'info');
+    }
+</script>
+</body>
+</html>

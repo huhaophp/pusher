@@ -44,13 +44,13 @@ func main() {
 		logger.GetLogger().Fatalf("failed to start websocket server: %v", err)
 	}
 
+	logger.GetLogger().Infof("websocket server started at %s", conf.APP.Port)
+
 	if conf.PProf.Enable {
 		go func() {
 			logger.GetLogger().Println(http.ListenAndServe(fmt.Sprintf(":%s", conf.PProf.Port), nil))
 		}()
 	}
-
-	logger.GetLogger().Info("websocket server started and running...")
 
 	utils.WaitForShutdown()
 

@@ -50,7 +50,7 @@ pusher/
 - 自动处理连接异常和关闭
 
 ### 数据源 (Source)
-- 
+
 - 定义统一的数据源接口
 - Redis 实现：基于 Redis Pub/Sub
 - Kafka 实现：基于 Kafka Consumer
@@ -71,7 +71,7 @@ go run main.go
 
 ### 数据流说明
 
-1. 客户端通过 WebSocket 连接到服 
+1. 客户端通过 WebSocket 连接到服务
 2. 客户端发送 subscribe 消息订阅指定 topic 和 type 
 3. 服务端通过 Redis 或 Kafka 监听对应 topic 的消息 
 4. 当有新消息时，服务端根据订阅信息推送给对应客户端 

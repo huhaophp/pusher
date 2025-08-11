@@ -49,4 +49,7 @@ pusher 是一个基于 nbio 构建的高性能 WebSocket 推送服务，支持�
 }
 
 ```
+### javascript 演示 demo
+<img width="3326" height="1028" alt="image" src="https://github.com/user-attachments/assets/7ddb8d9d-b561-4284-a75c-e2ca4ec3c83c" />
+
 

@@ -45,6 +45,7 @@ func (h *DefaultHandler) OnMessage(c *websocket.Conn, _ websocket.MessageType, d
 
 // OnClose 当连接关闭时调用
 func (h *DefaultHandler) OnClose(c *websocket.Conn, err error) {
+	h.SubscriptionManager.Close(c)
 	logger.GetLogger().Debugf("connection closed, remote address: %s, err: %v", c.RemoteAddr().String(), err)
 }
 

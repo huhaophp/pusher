@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"pusher/internal/types"
 	"pusher/pkg/logger"
@@ -12,64 +13,73 @@ import (
 )
 
 type RedisSource struct {
-	redis      *redis.Client // redis 客户端
-	enableMock bool          // 是否开启模拟数据
+	redis      *redis.Client
+	enableMock bool
 }
 
 func NewRedisSource(redis *redis.Client) *RedisSource {
 	return &RedisSource{
 		redis:      redis,
-		enableMock: true,
+		enableMock: true, // 默认关闭模拟
 	}
 }
 
-// PullMessage 拉取消息
 func (r *RedisSource) PullMessage(ctx context.Context, topic string, handler func(data *types.Data)) error {
 	if r.enableMock {
-		go r.mockMessage(topic)
+		r.startMockProducer(topic)
 	}
-	subscribe := r.redis.Subscribe(ctx, topic)
-	defer subscribe.Close()
-	if _, err := subscribe.Receive(ctx); err != nil {
-		return fmt.Errorf("receive error: %w", err)
+
+	pubSub := r.redis.Subscribe(ctx, topic)
+
+	if _, err := pubSub.Receive(ctx); err != nil {
+		return fmt.Errorf("subscribe error: %w", err)
 	}
-	logger.GetLogger().WithField("indexer", "RedisSource").Infof("redis consumer started for topic: %s", topic)
+
+	logger.GetLogger().WithField("topic", topic).Info("redis consumer started")
+
+	ch := pubSub.Channel(
+		redis.WithChannelSize(500),
+		redis.WithChannelHealthCheckInterval(30*time.Second),
+	)
+
 	for {
 		select {
-		case msg := <-subscribe.Channel():
-			if msg == nil {
-				logger.GetLogger().Info("msg is nil")
-				continue
+		case msg, ok := <-ch:
+			if !ok {
+				return errors.New("redis channel closed")
 			}
 			var data types.Data
 			if err := json.Unmarshal([]byte(msg.Payload), &data); err != nil {
-				logger.GetLogger().Infof("json umarshal failed, err: %+v", err)
+				logger.GetLogger().Warnf("unmarshal error: %v", err)
 				continue
 			}
 			data.Meta.ReceiveTime = time.Now()
 			handler(&data)
 		case <-ctx.Done():
-			logger.GetLogger().Info("context done")
+			logger.GetLogger().Info("context cancelled")
 			return nil
 		}
 	}
 }
 
-// mockMessage 模拟消息
-func (r *RedisSource) mockMessage(topic string) {
-	ticker := time.NewTicker(time.Second)
-	for range ticker.C {
-		var customPayload struct {
-			Msg string `json:"msg"`
+func (r *RedisSource) startMockProducer(topic string) {
+	go func() {
+		ticker := time.NewTicker(time.Millisecond * 50)
+		defer ticker.Stop()
+		for range ticker.C {
+			payload := fmt.Sprintf("mock data at %s", time.Now().Format(time.RFC3339))
+			typeList := []string{"test", "test2"}
+			for _, typ := range typeList {
+				data, _ := json.Marshal(types.Data{
+					Topic:   topic,
+					Type:    typ,
+					Payload: payload,
+				})
+				if err := r.redis.Publish(context.Background(), topic, data).Err(); err != nil {
+					logger.GetLogger().Warnf("mock publish failed: %v", err)
+				}
+			}
 		}
-		customPayload.Msg = fmt.Sprintf("hello world, time: %+v", time.Now().Format("2006-01-02 15:04:05"))
-		payload, _ := json.Marshal(customPayload)
-		data, _ := json.Marshal(map[string]any{
-			"topic":   topic,
-			"type":    "test",
-			"payload": string(payload),
-		})
-		r.redis.Publish(context.Background(), topic, data)
-		time.Sleep(time.Second)
-	}
+	}()
+
 }

@@ -57,18 +57,26 @@ func (sm *SubscriptionManager) Unsubscribe(topic, typ string, conn *websocket.Co
 	}
 }
 
+func (sm *SubscriptionManager) Close(conn *websocket.Conn) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	for _, t := range sm.subscriptions {
+		t.Close(conn)
+	}
+}
+
 // monitor 监控主题和订阅者
 func (sm *SubscriptionManager) monitor() {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 	for range ticker.C {
 		sm.mu.RLock()
-		for topic, t := range sm.subscriptions {
-			for typ, subscribers := range t.subscribers {
-				logger.GetLogger().Infof("topic: %s, type: %s, subscribers: %d", topic, typ, len(subscribers))
-			}
-
-		}
+		subscriptions := sm.subscriptions
 		sm.mu.RUnlock()
+		for topic, t := range subscriptions {
+			for typ, subscribers := range t.subscribers {
+				logger.GetLogger().Infof("topic: %s, type: %s, subscribers: %d", topic, typ, len(subscribers.subs))
+			}
+		}
 	}
 }

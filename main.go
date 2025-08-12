@@ -48,8 +48,12 @@ func main() {
 
 	if conf.PProf.Enable {
 		go func() {
-			logger.GetLogger().Println(http.ListenAndServe(fmt.Sprintf(":%s", conf.PProf.Port), nil))
+			err = http.ListenAndServe(fmt.Sprintf(":%s", conf.PProf.Port), nil)
+			if err != nil {
+				logger.GetLogger().Fatalf("failed to start pprof server: %v", err)
+			}
 		}()
+		logger.GetLogger().Info("pprof server started at ", conf.PProf.Port)
 	}
 
 	utils.WaitForShutdown()

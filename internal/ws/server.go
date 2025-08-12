@@ -52,7 +52,7 @@ func NewWebsocketServer(config *config.APP, handler Handler) *WebsocketServer {
 // onWebsocket 升级连接到WebSocket
 func (ws *WebsocketServer) onWebsocket(w http.ResponseWriter, r *http.Request) {
 	if _, err := ws.upgrader.Upgrade(w, r, nil); err != nil {
-		logger.GetLogger().Infof("upgrade failed: %v", err)
+		logger.GetLogger().Warnf("upgrade failed: %+v", err)
 		http.Error(w, "upgrade failed", http.StatusInternalServerError)
 	}
 }
@@ -96,10 +96,10 @@ func (ws *WebsocketServer) GetConnLen() int {
 
 // monitor 监控连接
 func (ws *WebsocketServer) monitor() {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(time.Second * 10)
 	for range ticker.C {
 		ws.mu.RLock()
-		logger.GetLogger().Infof("current connections: %d, connections: %+v", len(ws.conns), ws.conns)
+		logger.GetLogger().Infof("current connections: %d", len(ws.conns))
 		ws.mu.RUnlock()
 	}
 }

@@ -12,56 +12,118 @@ import (
 
 type TopicSubscription struct {
 	Topic       string
-	subscribers map[string]map[*websocket.Conn]*Subscriber
+	subscribers map[string]*subscriberGroup
 	mu          sync.RWMutex
 	source      source.Source
+	ctx         context.Context
+	cancel      context.CancelFunc
 }
 
-// NewTopicSubscription 创建一个新的主题订阅
+type subscriberGroup struct {
+	subs map[*websocket.Conn]*Subscriber
+	mu   sync.RWMutex
+}
+
 func NewTopicSubscription(topic string, redisSource source.Source) *TopicSubscription {
-	topicSubscription := &TopicSubscription{
+	ctx, cancel := context.WithCancel(context.Background())
+	ts := &TopicSubscription{
 		Topic:       topic,
+		subscribers: make(map[string]*subscriberGroup),
 		source:      redisSource,
-		subscribers: make(map[string]map[*websocket.Conn]*Subscriber),
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 
-	go topicSubscription.start()
-
-	return topicSubscription
+	go ts.start()
+	return ts
 }
 
-// start 启动主题订阅
 func (ts *TopicSubscription) start() {
-	err := ts.source.PullMessage(context.Background(), ts.Topic, ts.onMessage)
-	if err != nil {
-		logger.GetLogger().Warnf("error pulling message from source: %+v", err)
-	}
-}
-
-// onMessage 处理来自源的消息
-func (ts *TopicSubscription) onMessage(data *types.Data) {
-	for conn, subscriber := range ts.subscribers[data.Type] {
-		if subscriber.isClosed {
-			ts.Remove(data.Type, conn)
-			continue
+	defer func() {
+		if r := recover(); r != nil {
+			logger.GetLogger().Errorf("topic %s panic: %v", ts.Topic, r)
 		}
-		subscriber.Send(data)
+	}()
+
+	err := ts.source.PullMessage(ts.ctx, ts.Topic, ts.onMessage)
+	if err != nil {
+		logger.GetLogger().Warnf("error pulling message: %v", err)
 	}
 }
 
-// Add 添加一个新的订阅者到主题
-func (ts *TopicSubscription) Add(typ string, c *websocket.Conn) {
-	ts.mu.Lock()
-	if _, ok := ts.subscribers[typ]; !ok {
-		ts.subscribers[typ] = make(map[*websocket.Conn]*Subscriber)
+func (ts *TopicSubscription) onMessage(data *types.Data) {
+	ts.mu.RLock()
+	group, exists := ts.subscribers[data.Type]
+	ts.mu.RUnlock()
+
+	if !exists {
+		return
 	}
-	ts.subscribers[typ][c] = NewSubscriber(c)
-	ts.mu.Unlock()
+
+	group.mu.RLock()
+	defer group.mu.RUnlock()
+
+	for conn, sub := range group.subs {
+		select {
+		case <-sub.closeChan:
+			go ts.Remove(data.Type, conn) // 异步清理
+		default:
+			err := sub.Send(data)
+			if err != nil {
+				logger.GetLogger().Errorf("error sending message: %v", err)
+			}
+		}
+	}
 }
 
-// Remove 从主题中删除一个订阅者
-func (ts *TopicSubscription) Remove(typ string, conn *websocket.Conn) {
+func (ts *TopicSubscription) Add(typ string, conn *websocket.Conn) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
-	delete(ts.subscribers[typ], conn)
+
+	if _, exists := ts.subscribers[typ]; !exists {
+		ts.subscribers[typ] = &subscriberGroup{
+			subs: make(map[*websocket.Conn]*Subscriber),
+		}
+	}
+
+	ts.subscribers[typ].mu.Lock()
+	defer ts.subscribers[typ].mu.Unlock()
+	ts.subscribers[typ].subs[conn] = NewSubscriber(conn)
+}
+
+func (ts *TopicSubscription) Remove(typ string, conn *websocket.Conn) {
+	ts.mu.RLock()
+	group, exists := ts.subscribers[typ]
+	ts.mu.RUnlock()
+
+	if !exists {
+		return
+	}
+
+	group.mu.Lock()
+	defer group.mu.Unlock()
+
+	if _, ok := group.subs[conn]; ok {
+		delete(group.subs, conn)
+	}
+
+	if len(group.subs) == 0 {
+		ts.mu.Lock()
+		defer ts.mu.Unlock()
+		delete(ts.subscribers, typ)
+	}
+}
+
+func (ts *TopicSubscription) Close(conn *websocket.Conn) {
+	ts.mu.RLock()
+	subscribers := ts.subscribers
+	ts.mu.RUnlock()
+	for _, group := range subscribers {
+		group.mu.RLock()
+		if sub, ok := group.subs[conn]; ok {
+			sub.Close()
+			delete(group.subs, conn)
+		}
+		group.mu.RUnlock()
+	}
 }

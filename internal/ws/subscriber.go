@@ -3,59 +3,109 @@ package ws
 import (
 	"encoding/json"
 	"errors"
-	"net"
 	"pusher/internal/types"
 	"pusher/pkg/logger"
+	"sync"
+	"time"
 
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
 type Subscriber struct {
-	isClosed bool            // 是否关闭
-	conn     *websocket.Conn // 客户端连接
-	sendChan chan types.Data // 推送通道
+	mu        sync.RWMutex    // 保护状态和连接
+	isClosed  bool            // 原子性关闭状态
+	conn      *websocket.Conn // 客户端连接
+	sendChan  chan types.Data // 有缓冲的推送通道
+	closeChan chan struct{}   // 关闭信号通道
 }
 
-// NewSubscriber 创建一个订阅者
+const (
+	defaultWriteTimeout = 5 * time.Second
+	maxRetryCount       = 3
+)
+
+// NewSubscriber 创建并初始化订阅者
 func NewSubscriber(conn *websocket.Conn) *Subscriber {
 	s := &Subscriber{
-		isClosed: false,
-		conn:     conn,
-		sendChan: make(chan types.Data, types.SubscriberSendChanSize),
+		conn:      conn,
+		sendChan:  make(chan types.Data, types.SubscriberSendChanSize),
+		closeChan: make(chan struct{}),
 	}
+
 	go s.writeLoop()
+
 	return s
 }
 
-// Send 发送消息到连接
-func (s *Subscriber) Send(data *types.Data) {
+// Send 线程安全的消息发送
+func (s *Subscriber) Send(data *types.Data) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.isClosed {
+		return errors.New("subscriber closed")
+	}
+
 	select {
 	case s.sendChan <- *data:
+		return nil
 	default:
-		logger.GetLogger().Warnf("[subscriber] send buffer full, dropping message for conn %s", s.conn.RemoteAddr())
+		return errors.New("send buffer full")
 	}
 }
 
-// writeLoop 写入循环
 func (s *Subscriber) writeLoop() {
-	for data := range s.sendChan {
-		msg, err := json.Marshal(data)
-		if err != nil {
-			logger.GetLogger().Warnf("[subscriber] Marshal error: %v", err)
-			continue
-		}
-		err = s.conn.WriteMessage(websocket.TextMessage, msg)
-		if err != nil {
-			logger.GetLogger().Warnf("[subscriber] write failed: %v", err)
-			if errors.Is(err, net.ErrClosed) {
-				s.isClosed = true
-				return
+	for {
+		select {
+		case data := <-s.sendChan:
+			msg, err := json.Marshal(data)
+			if err != nil {
+				logger.GetLogger().Warnf("[subscriber] marshal error: %v", err)
+				continue
 			}
+			err = s.conn.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				logger.GetLogger().Warnf("[subscriber] write message error: %v", err)
+				continue
+			}
+		case <-s.closeChan:
+			logger.GetLogger().Infof("[subscriber] closing subscriber for %s", s.conn.RemoteAddr())
+			s.safeClose()
+			return
 		}
 	}
 }
 
-// GetCloseState 获取关闭状态
+func (s *Subscriber) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.isClosed {
+		return
+	}
+
+	close(s.closeChan)
+	s.isClosed = true
+
+	if s.conn != nil {
+		_ = s.conn.Close()
+	}
+}
+
 func (s *Subscriber) GetCloseState() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.isClosed
+}
+
+func (s *Subscriber) safeClose() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.isClosed {
+		s.isClosed = true
+		if s.conn != nil {
+			_ = s.conn.Close()
+		}
+	}
 }

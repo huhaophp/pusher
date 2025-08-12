@@ -5,7 +5,7 @@ app:
 
 pprof:
   enable: true
-  prot: 6060
+  port: 6060
 
 redis:  
   host: localhost
@@ -21,9 +21,12 @@ source:
     - "topic3"
 
 logger:
-  level: debug
+  level: info
 
 kafka:
   servers: "localhost"
   groupID: "consumer"
   autoOffsetReset: "latest"
+
+websocket:
+  subscriberChanSize: 200

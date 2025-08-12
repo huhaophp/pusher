@@ -1,71 +1,128 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>WebSocket Client Demo</title>
+    <title>WebSocket 客户端 Demo</title>
     <style>
         body {
-            font-family: monospace;
+            font-family: 'Arial', sans-serif;
             margin: 20px;
-            background: #f4f4f4;
+            background: #f5f5f5;
         }
 
         #log {
             background: #222;
             color: #eee;
-            padding: 10px;
-            height: 600px;
+            padding: 15px;
+            height: 500px;
             overflow-y: scroll;
-            width: 100%;
-            font-size: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
         }
 
         .log-line {
-            margin-bottom: 2px;
+            margin-bottom: 8px;
+            padding: 5px;
+            border-bottom: 1px solid #444;
         }
 
-        .success {
-            color: #4CAF50;
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .info { color: #2196F3; }
+        .warning { color: #FFC107; }
+
+        button {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
         }
 
-        .error {
-            color: #f44336;
+        #btnStart { background: #4CAF50; color: white; }
+        #btnStop { background: #f44336; color: white; }
+        #btnClear { background: #FFC107; color: black; }
+        #btnReconnect { background: #2196F3; color: white; }
+
+        .status {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-weight: bold;
         }
 
-        .info {
-            color: #2196F3;
-        }
+        .connected { background: #4CAF50; color: white; }
+        .disconnected { background: #f44336; color: white; }
+        .reconnecting { background: #FFC107; color: black; }
     </style>
 </head>
 <body>
 <h2>🚀 WebSocket 客户端 Demo</h2>
-<p>连接地址<code id="wsUrl">ws://127.0.0.1:8081/ws</code></p>
-<button onclick="startClient()">启动客户端</button>
-<button onclick="stopClient()">停止客户端</button>
+<div class="status disconnected">状态: 未连接</div>
+
+<div>
+    <button id="btnStart" onclick="startClient()">启动客户端</button>
+    <button id="btnStop" onclick="stopClient()">停止客户端</button>
+    <button id="btnClear" onclick="clearLog()">清空日志</button>
+    <button id="btnReconnect" onclick="simulateReconnect()">模拟重连</button>
+</div>
+
+<p>连接地址: <code id="wsUrl">ws://127.0.0.1:8081/ws</code></p>
+
 <div id="log"></div>
 
 <script>
     let ws = null;
     let pingInterval = null;
-    let clientId = Math.floor(Math.random() * 10000); // 随机客户端ID，仅用于日志区分
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 3000; // 3秒重试间隔
+    let clientId = Math.floor(Math.random() * 10000);
+    let isManualDisconnect = false;
 
-    function log(message, type = 'info') {
+    function updateStatus(status, message = '') {
+        const statusDiv = document.querySelector('.status');
+        statusDiv.className = 'status ' + status;
+
+        const statusText = {
+            'connected': '状态: 已连接',
+            'disconnected': '状态: 已断开',
+            'reconnecting': '状态: 正在重连...'
+        };
+
+        statusDiv.textContent = statusText[status] + (message ? ' - ' + message : '');
+    }
+
+    function log(message, type = 'info', data = null) {
         const div = document.createElement('div');
         div.className = `log-line ${type}`;
         const time = new Date().toLocaleTimeString();
-        div.textContent = `[${time}] [Client-${clientId}] ${message}`;
+        div.innerHTML = `<span class="timestamp">[${time}]</span> <span class="client-id">[Client-${clientId}]</span> ${message}`;
+
+        if (data) {
+            const dataDiv = document.createElement('div');
+            dataDiv.className = 'message-data';
+            dataDiv.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            div.appendChild(dataDiv);
+        }
+
         document.getElementById('log').appendChild(div);
         document.getElementById('log').scrollTop = document.getElementById('log').scrollHeight;
     }
 
+    function clearLog() {
+        document.getElementById('log').innerHTML = '';
+        log('日志已清空', 'info');
+    }
+
     function getTimestamp() {
-        return Date.now(); // 毫秒级时间戳
+        return Date.now();
     }
 
     function generateRequestId() {
         const now = new Date();
-        // 格式类似 "HHmmss" （与 Go 客户端 time.Now().Format("150405") 类似）
         return now.getHours().toString().padStart(2, '0') +
             now.getMinutes().toString().padStart(2, '0') +
             now.getSeconds().toString().padStart(2, '0');
@@ -75,20 +132,52 @@
         if (ws && ws.readyState === WebSocket.OPEN) {
             const jsonStr = JSON.stringify(data);
             ws.send(jsonStr);
-            log(`➡️ 发送: ${jsonStr}`, 'info');
+            log(`发送消息 ➡️`, 'info', data);
+            return true;
         } else {
-            log('❌ WebSocket 未连接，无法发送消息', 'error');
+            log('无法发送消息: WebSocket 未连接', 'error');
+            return false;
+        }
+    }
+
+    function startPing() {
+        stopPing();
+        pingInterval = setInterval(() => {
+            const ping = {
+                request_id: generateRequestId(),
+                action: "ping",
+                timestamp: getTimestamp()
+            };
+            sendMessage(ping);
+        }, 30000);
+    }
+
+    function stopPing() {
+        if (pingInterval) {
+            clearInterval(pingInterval);
+            pingInterval = null;
         }
     }
 
     function startClient() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+            log('客户端已在连接或已连接', 'warning');
+            return;
+        }
+
+        isManualDisconnect = false;
+        reconnectAttempts = 0;
         const wsUrl = document.getElementById('wsUrl').textContent;
-        log(`🔌 正在连接 WebSocket: ${wsUrl}`, 'info');
+        log(`正在连接 WebSocket: ${wsUrl}`, 'info');
+        updateStatus('reconnecting');
 
         ws = new WebSocket(wsUrl);
 
-        ws.onopen = function () {
-            log('✅ WebSocket 连接已建立', 'success');
+        ws.onopen = function() {
+            log('WebSocket 连接已建立 ✅', 'success');
+            updateStatus('connected');
+            reconnectAttempts = 0;
+
             // 发送订阅消息
             const sub = {
                 request_id: generateRequestId(),
@@ -96,63 +185,57 @@
                 timestamp: getTimestamp(),
                 params: {
                     topic: "topic1",
-                    type: "test"
+                    type: "test2"
                 }
             };
             sendMessage(sub);
+
+            startPing();
         };
 
-        ws.onmessage = function (event) {
-            const parse = JSON.parse(event.data);
-            log(`📦 收到订阅消息: ${JSON.stringify(parse, null, 2)}`, 'info')
-            // 如果你想打印具体内容，可以取消下面这行注释（注意：可能包含二进制或不可读JSON）
-            // try {
-            //   const msg = JSON.parse(event.data);
-            //   log(`📦 消息内容: ${JSON.stringify(msg, null, 2)}`, 'info');
-            // } catch (e) {
-            //   log(`📦 原始消息 (非JSON?): ${event.data}`, 'info');
-            // }
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                log(`收到消息 📩`, 'success', data);
+            } catch (e) {
+                log(`收到非JSON消息`, 'info', event.data);
+            }
         };
 
-        ws.onerror = function (error) {
-            log('❌ WebSocket 发生错误', 'error');
+        ws.onerror = function(error) {
+            log(`WebSocket 错误: ${error.message || '未知错误'}`, 'error');
             console.error('WebSocket Error:', error);
         };
 
-        ws.onclose = function () {
-            log('❌ WebSocket 连接已关闭', 'error');
-            stopPing(); // 停止 ping
-        };
+        ws.onclose = function(event) {
+            log(`WebSocket 连接已关闭 (代码: ${event.code}, 原因: ${event.reason || '无'})`, 'error');
+            stopPing();
 
-        // 每 30 秒发送一次 ping
-        function startPing() {
-            pingInterval = setInterval(() => {
-                const ping = {
-                    request_id: generateRequestId(),
-                    action: "ping",
-                    timestamp: getTimestamp()
-                };
-                sendMessage(ping);
-            }, 30000); // 30s
-        }
-
-        function stopPing() {
-            if (pingInterval) {
-                clearInterval(pingInterval);
-                pingInterval = null;
+            if (!isManualDisconnect && reconnectAttempts < maxReconnectAttempts) {
+                updateStatus('reconnecting', `将在 ${reconnectDelay/1000} 秒后尝试重连 (${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+                setTimeout(startClient, reconnectDelay);
+                reconnectAttempts++;
+            } else {
+                updateStatus('disconnected');
             }
-        }
-
-        startPing(); // 启动定时 ping
+        };
     }
 
     function stopClient() {
+        isManualDisconnect = true;
         if (ws) {
             ws.close();
             ws = null;
         }
         stopPing();
-        log('⏹️ 客户端已停止', 'info');
+        log('客户端已手动停止 ⏹️', 'info');
+        updateStatus('disconnected');
+    }
+
+    function simulateReconnect() {
+        log('手动触发重连...', 'warning');
+        stopClient();
+        setTimeout(startClient, 500);
     }
 </script>
 </body>

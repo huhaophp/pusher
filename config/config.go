@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	APP    APP          `yaml:"app"`
-	Redis  RedisConfig  `yaml:"redis"`
-	Kafka  KafkaConfig  `yaml:"kafka"`
-	Source SourceConfig `yaml:"source"`
-	Logger LoggerConfig `yaml:"logger"`
-	PProf  PProfConfig  `yaml:"pprof"`
+	APP       APP             `yaml:"app"`
+	Redis     RedisConfig     `yaml:"redis"`
+	Kafka     KafkaConfig     `yaml:"kafka"`
+	Source    SourceConfig    `yaml:"source"`
+	Logger    LoggerConfig    `yaml:"logger"`
+	PProf     PProfConfig     `yaml:"pprof"`
+	WebSocket WebSocketConfig `yaml:"webSocket"`
 }
 
 type APP struct {
@@ -47,6 +48,10 @@ type KafkaConfig struct {
 type PProfConfig struct {
 	Port   string `yaml:"port"`
 	Enable bool   `yaml:"enable"`
+}
+
+type WebSocketConfig struct {
+	SubscriberChanSize int `yaml:"subscriberChanSize"`
 }
 
 func LoadConfig(path string) (*Config, error) {

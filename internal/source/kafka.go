@@ -42,7 +42,7 @@ func (k *KafkaSource) consumeLoop(ctx context.Context, topic string, handler fun
 		Topic:       topic,
 	})
 	defer reader.Close()
-	logger.GetLogger().WithField("indexer", "KafkaSource").Infof("Kafka consumer started for topic: %s", topic)
+	logger.GetLogger().WithField("topic", topic).Info("kafka consumer started")
 	for {
 		select {
 		case <-ctx.Done():

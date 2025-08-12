@@ -53,28 +53,25 @@ func newClient(id int, wsURL string, wg *sync.WaitGroup) {
 	// 读协程
 	go func() {
 		for {
-			_, value, err := conn.ReadMessage()
+			_, _, err := conn.ReadMessage()
 			if err != nil {
 				log.Printf("[Client %d] ❌ 读取错误: %v", id, err)
 				return
 			}
-			log.Printf("[Client %d] ✅ 收到消息: %d", id, len(value))
+			//log.Printf("[Client %d] ✅ 收到消息: %d", id, len(value))
 		}
 	}()
 
-	for {
-		select {
-		case <-pingTicker.C:
-			ping := Subscribe{
-				RequestId: time.Now().Format("150405"),
-				Action:    "ping",
-				Timestamp: time.Now().UnixMilli(),
-			}
-			pingBytes, _ := json.Marshal(ping)
-			if err := conn.WriteMessage(websocket.TextMessage, pingBytes); err != nil {
-				log.Printf("[Client %d] ❌ ping 失败: %v", id, err)
-				return
-			}
+	for range pingTicker.C {
+		ping := Subscribe{
+			RequestId: time.Now().Format("150405"),
+			Action:    "ping",
+			Timestamp: time.Now().UnixMilli(),
+		}
+		pingBytes, _ := json.Marshal(ping)
+		if err := conn.WriteMessage(websocket.TextMessage, pingBytes); err != nil {
+			log.Printf("[Client %d] ❌ ping 失败: %v", id, err)
+			return
 		}
 	}
 }
@@ -83,7 +80,7 @@ func main() {
 	var wsURL string
 	var clientCount int
 	flag.StringVar(&wsURL, "url", "ws://127.0.0.1:8081/ws", "WebSocket 服务器地址")
-	flag.IntVar(&clientCount, "n", 100, "客户端数量")
+	flag.IntVar(&clientCount, "n", 500, "客户端数量")
 	flag.Parse()
 
 	log.Printf("🚀 启动 %d 个 WebSocket 客户端...", clientCount)
@@ -93,6 +90,7 @@ func main() {
 
 	for i := 0; i < clientCount; i++ {
 		go newClient(i, wsURL, &wg)
+		time.Sleep(time.Millisecond * 10)
 	}
 
 	wg.Wait()

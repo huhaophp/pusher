@@ -6,7 +6,6 @@ import (
 	"pusher/internal/types"
 	"pusher/pkg/logger"
 	"sync"
-	"time"
 
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
@@ -18,11 +17,6 @@ type Subscriber struct {
 	sendChan  chan types.Data // 有缓冲的推送通道
 	closeChan chan struct{}   // 关闭信号通道
 }
-
-const (
-	defaultWriteTimeout = 5 * time.Second
-	maxRetryCount       = 3
-)
 
 // NewSubscriber 创建并初始化订阅者
 func NewSubscriber(conn *websocket.Conn) *Subscriber {

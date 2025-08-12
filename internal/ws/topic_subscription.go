@@ -103,9 +103,7 @@ func (ts *TopicSubscription) Remove(typ string, conn *websocket.Conn) {
 	group.mu.Lock()
 	defer group.mu.Unlock()
 
-	if _, ok := group.subs[conn]; ok {
-		delete(group.subs, conn)
-	}
+	delete(group.subs, conn)
 
 	if len(group.subs) == 0 {
 		ts.mu.Lock()

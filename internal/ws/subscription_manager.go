@@ -17,7 +17,10 @@ type SubscriptionManager struct {
 }
 
 // NewSubscriptionManager 创建一个新的订阅管理器
-func NewSubscriptionManager(redisTopicPuller *source.TopicPuller, kafkaTopicPuller *source.TopicPuller) *SubscriptionManager {
+func NewSubscriptionManager(
+	redisTopicPuller *source.TopicPuller,
+	kafkaTopicPuller *source.TopicPuller) *SubscriptionManager {
+
 	subscriptionManager := &SubscriptionManager{
 		subscriptions: make(map[string]*TopicSubscription),
 	}

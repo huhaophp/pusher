@@ -58,6 +58,7 @@ func (k *KafkaSource) consumeLoop(ctx context.Context, topic string, handler fun
 				logger.GetLogger().Errorf("Unmarshal error: %v", err)
 				continue
 			}
+
 			handler(&data)
 		}
 	}

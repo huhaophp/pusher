@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	_ "net/http/pprof"
 	"pusher/config"
 	"pusher/internal/source"
@@ -11,8 +10,6 @@ import (
 	"pusher/pkg/logger"
 	"pusher/pkg/redis"
 	"pusher/pkg/utils"
-
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -34,34 +31,16 @@ func main() {
 		logger.GetLogger().Fatalf("failed to connect to redis: %v", err)
 	}
 
-	subscriptionManager := ws.NewSubscriptionManager(
+	subManager := ws.NewSubscriptionManager(
 		source.NewTopicPuller(conf.Source.Redis, source.NewRedisSource(redisClient)),
 		source.NewTopicPuller(conf.Source.Kafka, source.NewKafkaSource(&conf.Kafka)),
 	)
 
-	group := errgroup.Group{}
-	group.Go(func() error {
-		if !conf.PProf.Enable {
-			return nil
-		}
-		if err = http.ListenAndServe(fmt.Sprintf(":%s", conf.PProf.Port), nil); err != nil {
-			return fmt.Errorf("failed to start pprof server: %v", err)
-		}
-		return nil
+	server := ws.NewWebsocketServer(&conf.APP, &ws.DefaultHandler{
+		SubscriptionManager: subManager,
 	})
-	group.Go(func() error {
-		server := ws.NewWebsocketServer(&conf.APP, &ws.DefaultHandler{
-			SubscriptionManager: subscriptionManager,
-		})
-		if err = server.Run(); err != nil {
-			return fmt.Errorf("websocket server failed: %v", err)
-		}
-		return nil
-	})
-
-	err = group.Wait()
-	if err != nil {
-		logger.GetLogger().Fatalf("error occurred: %v", err)
+	if err = server.Run(); err != nil {
+		logger.GetLogger().Fatalf("websocket server failed: %v", err)
 	}
 
 	utils.WaitForShutdown()

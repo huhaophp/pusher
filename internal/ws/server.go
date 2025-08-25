@@ -2,13 +2,14 @@ package ws
 
 import (
 	"fmt"
-	"github.com/lesismal/nbio/nbhttp"
-	"github.com/lesismal/nbio/nbhttp/websocket"
 	"net/http"
 	"pusher/config"
 	"pusher/pkg/logger"
 	"sync"
 	"time"
+
+	"github.com/lesismal/nbio/nbhttp"
+	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
 // Handler 事件处理接口

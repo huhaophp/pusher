@@ -21,7 +21,7 @@ source:
     - "topic3"
 
 logger:
-  level: info
+  level: debug
 
 kafka:
   servers: "localhost"

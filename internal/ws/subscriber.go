@@ -48,6 +48,7 @@ func (s *Subscriber) Send(data *types.Data) error {
 	}
 }
 
+// writeLoop 处理发送消息的协程
 func (s *Subscriber) writeLoop() {
 	for {
 		select {
@@ -70,6 +71,7 @@ func (s *Subscriber) writeLoop() {
 	}
 }
 
+// Close 关闭订阅者
 func (s *Subscriber) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -86,12 +88,14 @@ func (s *Subscriber) Close() {
 	}
 }
 
+// GetCloseState 获取关闭状态
 func (s *Subscriber) GetCloseState() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.isClosed
 }
 
+// safeClose 关闭连接并清理资源
 func (s *Subscriber) safeClose() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
